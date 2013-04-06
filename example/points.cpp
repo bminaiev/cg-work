@@ -1,6 +1,6 @@
 #include <iostream>
 #include <boost/random.hpp>
-#include <gmp.h>
+#include <gmpxx.h>
 
 int main(int argc, char ** argv) {
  boost::random::mt19937 gen;
@@ -28,4 +28,8 @@ int main(int argc, char ** argv) {
  int x = mpf_cmp(float_val, var2);
  double dVal = mpf_get_d(float_val);
  printf("%.20f %d\n", dVal, x);
+
+ // mpz_class
+ mpz_class t("123", 10);
+ std::cout << "t is eq to " << mpz_get_str(NULL, 10, t.get_mpz_t()) << std::endl;
 }

@@ -2,6 +2,7 @@
 #include <cstdio>
 #include <vector>
 #include <fstream>
+#include <algorithm>
 #include <map>
 
 using namespace std;
@@ -124,8 +125,6 @@ bool update_can_cut(int v, polygon & p, vector<bool> & cut_vertices) {
    return ok;
 }
 
-
-
 int get_betw(int p1, int p2, map<long long, int> & betw, polygon & points) {
    if (p1 > p2) 
       swap(p1, p2);
@@ -159,115 +158,6 @@ int get_another_triangle_on_same_side(int p1, int p2, int trId, map<long long, i
    return xx - trId - 2;
 }
 
-
-
-void make_answer(int k, point_d last, vector<int> & chain1, vector<int> & chain2, polygon & ans, vector<triangle> const & small_triangles, polygon const & p) {
-   triangle t = small_triangles[k];
-   int diff = t[0] + t[1] + t[2] - chain1[chain1.size() - 1] - chain2[chain2.size() - 1];
-   if (chain1.size() > 1 && chain1[chain1.size() - 2] == diff)
-      chain1.pop_back();
-   if (chain2.size() > 1 && chain2[chain2.size() - 2] == diff)
-      chain2.pop_back();
-   ans.push_back(p[diff]);
-   for (int i = 0; i < chain1.size(); i++) {
-      ans.push_back(p[chain1[chain1.size() - 1 - i]]);
-   }
-   ans.push_back(last);
-   for (int i = 0; i < chain2.size(); i++) {
-      ans.push_back(p[chain2[i]]);
-   }
-}
-
-bool is_vertex_on_triangle(int v, int t, vector<triangle> const & small_triangles) 
-{
-   return small_triangles[t][0] == v || small_triangles[t][1] == v || small_triangles[t][2] == v;
-}
-
-vector<int> get_points_same_for_triangles(int tr1, int tr2, vector<triangle> const & small_triangles) 
-{
-   vector<int> res;
-   for (int i = 0; i < 3; i++) {
-      if (is_vertex_on_triangle(small_triangles[tr1][i], tr2, small_triangles)) 
-         res.push_back(small_triangles[tr1][i]);
-   }
-   return res;
-}
-
-bool is_point_interesting(int v, int* interesting_points) 
-{
-   return interesting_points[0] == v || interesting_points[1] == v;
-}
-
-void dfs(int v, int p, vector<triangle> const & small_triangles, vector<vector<int> > const & g, polygon const & points, vector<bool> & used_trinalges, double & cur_sq, double need_sq, int* interesting_points, point_d & last, vector<int> & chain1, vector<int> & chain2, map<long long, int> & triangle_id) {
-   used_trinalges[v] = true;
-   triangle t = small_triangles[v];
-   point_d p1 = points[t[0]];
-   point_d p2 = points[t[1]];
-   point_d p3 = points[t[2]];
-   double add_sq = 0;
-   add_sq += (p1.x - p2.x)  * (p1.y + p2.y) / 2.0;
-   add_sq += (p2.x - p3.x)  * (p3.y + p2.y) / 2.0;
-   add_sq += (p3.x - p1.x)  * (p1.y + p3.y) / 2.0;
-   if (add_sq < 0)
-      add_sq = -add_sq;
-   if (add_sq + cur_sq >= need_sq) {
-      used_trinalges[v] = false;
-      for (int i = 0; i < 3; i++) {
-         int p11 = t[i];
-         int p22 = t[(i + 1) % 3];
-         int anoth = get_another_triangle_on_same_side(p11, p22, v, triangle_id);
-         if (anoth != g[v][0] && anoth != g[v][1]) {
-            interesting_points[0] = p11;
-            interesting_points[1] = p22;
-            double ostS = need_sq - cur_sq;
-            double divide_pr = ostS / (0.0 + add_sq);
-            if (small_triangles[p][0] == p22 || small_triangles[p][1] == p22 || small_triangles[p][2] == p22) 
-               swap(p11, p22);
-            point_d _p11 = points[p11];
-            point_d _p22 = points[p22];
-            double last_point_x = _p11.x + (_p22.x - _p11.x) * divide_pr;
-            double last_point_y = _p11.y + (_p22.y - _p11.y) * divide_pr;
-            last.x = last_point_x;
-            last.y = last_point_y;
-            vector<int> sam = get_points_same_for_triangles(v, p, small_triangles);
-            chain1.push_back(sam[0]);
-            chain2.push_back(sam[1]);     
-            break;
-         }
-      }
-      return;
-   }
-   for (int i = 0; i < g[v].size(); i++) {
-      int to = g[v][i];
-      if (used_trinalges[to])
-         continue;
-      cur_sq += add_sq;
-      dfs(to, v, small_triangles, g, points, used_trinalges, cur_sq, need_sq, interesting_points, last, chain1, chain2, triangle_id);
-      if (p != -1) {
-         int diff = t[0] + t[1] + t[2] - chain1[chain1.size() - 1] - chain2[chain2.size() - 1];
-         if (is_vertex_on_triangle(chain1[chain1.size() - 1], p, small_triangles)) {
-            if (chain2.size() > 1 && chain2[chain2.size() - 2] == diff) {
-               chain2.pop_back(); 
-            } else {
-               if (chain2.size() > 0 && is_point_interesting(chain2[chain2.size() - 1], interesting_points) && is_point_interesting(diff, interesting_points))
-                  chain2.pop_back();
-               chain2.push_back(diff); 
-            }
-         } else {
-            if (chain1.size() > 1 && chain1[chain1.size() - 2] == diff) {
-               chain1.pop_back();
-            } else {
-               if (chain1.size() > 0 && is_point_interesting(chain1[chain1.size() - 1], interesting_points) && is_point_interesting(diff, interesting_points))
-                  chain1.pop_back();
-               chain1.push_back(diff);
-            }
-         }
-      }
-      return;
-   }
-}
-
-
 void triangulate(polygon p, vector<triangle> & triangles) {
    int n = p.size();
    bool can_cut[n];
@@ -292,8 +182,9 @@ void triangulate(polygon p, vector<triangle> & triangles) {
    }
 }
 
-void make_graph(vector<triangle> const & all_triangles, polygon & points, vector<triangle> & small_triangles, vector<vector<int> > & graph, map<long long, int> & triangle_id) {
+void make_graph(vector<triangle> const & all_triangles, polygon & points, vector<triangle> & small_triangles, vector<vector<int> > & graph) {
    map<long long, int> betw;
+   map<long long, int> triangle_id;
    for (int i = 0; i < all_triangles.size(); i++) {
       triangle t = all_triangles[i];
       int m1 = get_betw(t[0], t[1], betw, points);
@@ -332,26 +223,146 @@ void make_graph(vector<triangle> const & all_triangles, polygon & points, vector
    }
 }
 
-void find_answer(polygon & points, vector<triangle> & small_triangles, vector<vector<int> > & graph, polygon & ans1, polygon & ans2, int n, map<long long, int> triangle_id) {
+void rearrange_triangles(vector<triangle> & small_triangles, vector<vector<int> > const & graph) {
+   int n = small_triangles.size();
+   vector<bool> was(n);
+   vector<triangle> new_small_triangles;
+   int cur = 0;
+   while (true) {
+      was[cur] = true;
+      new_small_triangles.push_back(small_triangles[cur]);
+      if (!was[graph[cur][0]]) {
+         cur = graph[cur][0];
+      } else {
+         if (!was[graph[cur][1]]) {
+            cur = graph[cur][1];
+         } else {
+            break;
+         }
+      }
+   }
+   small_triangles.clear();
+   for (int i = 0; i < new_small_triangles.size(); i++) 
+      small_triangles.push_back(new_small_triangles[i]);
+}
+
+int different_point(triangle const & t1, triangle const & t2) {
+   for (int i = 0; i < 3; i++) {
+      if (t1[i] != t2[0] && t1[i] != t2[1] && t1[i] != t2[2])
+         return t1[i];
+   }
+   return -1;
+}
+
+long long edge(int v, int u) {
+   if (u > v) 
+      swap(u, v);
+   return 1000000000LL * v + u;
+}
+
+void make_polygon(int fr, int addV, vector<triangle> const & small_triangles, polygon & points, polygon & ans, double need_sq) {
+   double cur_sq = 0;
+   int st = fr;
+   int interesting_points[2];
+   int stop_id = 0;
+   vector<long long> edges;
+   while (true) {
+      triangle t = small_triangles[fr];
+      point_d p1 = points[t[0]];
+      point_d p2 = points[t[1]];
+      point_d p3 = points[t[2]];
+      double add_sq = 0;
+      add_sq += (p1.x - p2.x)  * (p1.y + p2.y) / 2.0;
+      add_sq += (p2.x - p3.x)  * (p3.y + p2.y) / 2.0;
+      add_sq += (p3.x - p1.x)  * (p1.y + p3.y) / 2.0;
+      if (add_sq < 0)
+         add_sq = -add_sq;
+      if (add_sq + cur_sq >= need_sq) {
+         stop_id = fr;
+         interesting_points[0] = different_point(t, small_triangles[fr + addV]);
+         interesting_points[1] = different_point(t, small_triangles[fr - addV]);
+         double ostS = need_sq - cur_sq;
+         double divide_pr = ostS / (0.0 + add_sq);
+         point_d _p11 = points[interesting_points[0]];
+         point_d _p22 = points[interesting_points[1]];
+         double last_point_x = _p11.x + (_p22.x - _p11.x) * divide_pr;
+         double last_point_y = _p11.y + (_p22.y - _p11.y) * divide_pr;
+         points.push_back(point_d(last_point_x, last_point_y));
+         int last_point = t[0] + t[1] + t[2] - interesting_points[0] - interesting_points[1];
+         edges.push_back(edge(interesting_points[0], last_point));
+         edges.push_back(edge(interesting_points[0], points.size() - 1));
+         edges.push_back(edge(last_point, points.size() - 1));
+         break;
+      }
+      fr += addV;
+      cur_sq += add_sq;
+   }
+   long long interesting_edge = edge(interesting_points[0], interesting_points[1]);
+   for (int fr = st; fr != stop_id; fr += addV) {
+      for (int i = 0; i < 3; i++) {
+         int v1 = small_triangles[fr][i];
+         int v2 = small_triangles[fr][(i + 1) % 3];
+         long long e = edge(v1, v2);
+         if (e == interesting_edge) {
+            edges.push_back(edge(interesting_points[0], points.size() - 1));
+            edges.push_back(edge(interesting_points[1], points.size() - 1));
+         } else {
+            edges.push_back(e);
+         }
+      }
+   }
+   sort(edges.begin(), edges.end());
+   vector<long long> ok_edges;
+   for (int i = 0; i < edges.size(); i++) {
+      bool ok = true;
+      if (i > 0 && edges[i - 1] == edges[i])
+         ok = false;
+      if (i < edges.size() - 1 && edges[i + 1] == edges[i])
+         ok = false;
+      if (ok)
+         ok_edges.push_back(edges[i]);
+   }
+   vector<vector<int> > g;
+   for (int i = 0; i < points.size(); i++) {
+      vector<int> tmp;
+      g.push_back(tmp);
+   }
+   for (int i = 0; i < ok_edges.size(); i++) {
+      int v1 = ok_edges[i] % 1000000000LL;
+      int v2 = ok_edges[i] / 1000000000LL;
+      g[v1].push_back(v2);
+      g[v2].push_back(v1);
+   }
+   int start_vertex = 0;
+   for (int i = 0; i < points.size(); i++) {
+      if (g[i].size() != 0)
+         start_vertex = i;
+   }
+   vector<bool> was_vertex(points.size());
+   while (true) {
+      ans.push_back(points[start_vertex]);
+      was_vertex[start_vertex] = true;
+      if (!was_vertex[g[start_vertex][0]]) {
+         start_vertex = g[start_vertex][0];
+      } else {
+         if (!was_vertex[g[start_vertex][1]]) {
+            start_vertex = g[start_vertex][1];
+         } else {
+            break;
+         }
+      }
+   }
+}
+
+void find_answer(polygon & points, vector<triangle> & small_triangles, polygon & ans1, polygon & ans2, int n) {
    double need_sq = 0;
    for (int i = 0; i < n; i++) { 
       point_d p1 = points[i];
       point_d p2 = points[(i + 1) % n];
       need_sq += (p1.x - p2.x) * (p1.y + p2.y) / 4.0;
    }
-   vector<bool> used_trinalges(small_triangles.size());
-   vector<int> chain1;
-   vector<int> chain2;
-   point_d last(0.0, 0.0);
-   double cur_sq = 0;
-   int interesting_points[2];
-   dfs(0, -1, small_triangles, graph, points, used_trinalges, cur_sq, need_sq, interesting_points, last, chain1, chain2, triangle_id);
-   make_answer(0, last, chain1, chain2, ans1, small_triangles, points);
-   chain1.clear();
-   chain2.clear();
-   cur_sq = 0;
-   dfs(graph[0][1], -1, small_triangles, graph, points, used_trinalges, cur_sq, need_sq, interesting_points, last, chain1, chain2, triangle_id);
-   make_answer(graph[0][1], last, chain1, chain2, ans2, small_triangles, points);
+   make_polygon(0, 1, small_triangles, points, ans1, need_sq);
+   make_polygon(small_triangles.size() - 1, -1, small_triangles, points, ans2, need_sq);
 }
 
 
@@ -365,9 +376,9 @@ int main() {
    triangulate(p, triangles);
    vector<vector<int> > graph;
    vector<triangle> small_triangles;
-   map<long long, int> triangle_id;
-   make_graph(triangles, p, small_triangles, graph, triangle_id);
+   make_graph(triangles, p, small_triangles, graph);
+   rearrange_triangles(small_triangles, graph);
    polygon p1, p2;
-   find_answer(p, small_triangles, graph, p1, p2, n, triangle_id);
+   find_answer(p, small_triangles, p1, p2, n);
    out << p1 << p2;
 }
